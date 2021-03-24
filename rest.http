@@ -10,3 +10,8 @@ POST http://localhost:8080/api/auth/login HTTP/1.1
 Content-Type: application/json
 
 {"username": "viktor", "password": "1234"}
+
+###
+
+GET http://localhost:8080/api/authorized HTTP/1.1
+Authorization: Bearer a8bef8b2-78f6-4d19-887a-f2fe848c5ebf

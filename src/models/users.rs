@@ -1,6 +1,17 @@
+use std::{
+    future::{ready, Future, Ready},
+    pin::Pin,
+};
+
 use super::Model;
 use super::ResponseError;
-use actix_web::{dev::ResponseBody, http::StatusCode};
+use crate::WebState;
+use actix_web::{
+    dev::ResponseBody,
+    http::{header::AUTHORIZATION, StatusCode},
+    web::Data,
+    FromRequest, HttpMessage,
+};
 use bson::oid::ObjectId;
 use mongodb::bson::{self, doc, DateTime};
 use serde::{Deserialize, Serialize};
@@ -96,5 +107,69 @@ impl AccessToken {
             Ok(Some(doc)) => User::from_doc(doc),
             _ => Err(ResponseError::error("error")),
         }
+    }
+}
+
+impl actix_web::FromRequest for AccessToken {
+    type Error = ResponseError;
+    // type Future = Ready<Result<Self, Self::Error>>;
+    type Future = Pin<Box<dyn Future<Output = Result<Self, Self::Error>>>>;
+    type Config = ();
+
+    fn from_request(req: &actix_web::HttpRequest, _: &mut actix_web::dev::Payload) -> Self::Future {
+        let header_value = req.headers().get(AUTHORIZATION).map(|val| val.clone());
+
+        let db = match req.app_data::<Data<WebState>>() {
+            Some(state) => state.db.clone(),
+            _ => {
+                return Box::pin(ready(Err(ResponseError::error(
+                    "could not get db from WebState",
+                ))))
+            }
+        };
+
+        Box::pin(async move {
+            let auth_header = match header_value {
+                Some(header) => match header.to_str() {
+                    Ok(str) => str.to_owned(),
+                    _ => return Err(ResponseError::error("invalid AUTHORIZATION header")),
+                },
+                None => {
+                    return Err(ResponseError::new(
+                        "missing access token",
+                        StatusCode::UNAUTHORIZED,
+                    ))
+                }
+            };
+
+            if !auth_header.to_lowercase().starts_with("bearer ") {
+                return Err(ResponseError::error(
+                    "AUTHORIZATION header is invalid bearer",
+                ));
+            }
+
+            let token_value = match auth_header.split(' ').nth(1) {
+                Some(token) => token,
+                _ => {
+                    return Err(ResponseError::error(
+                        "AUTHORIZATION header is invalid bearer",
+                    ))
+                }
+            };
+
+            let token = match AccessToken::collection(&db)
+                .find_one(doc! { "token": token_value }, None)
+                .await
+            {
+                Ok(Some(token)) => AccessToken::from_doc(token),
+                Ok(None) => Err(ResponseError::new(
+                    "invalid token",
+                    StatusCode::UNAUTHORIZED,
+                )),
+                Err(_) => Err(ResponseError::error("failed to convert access token")),
+            };
+
+            return token;
+        })
     }
 }
