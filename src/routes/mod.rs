@@ -10,8 +10,13 @@ async fn hello() -> impl Responder {
 }
 
 #[get("/authorized")]
-async fn authorized(token: AccessToken) -> impl Responder {
-    HttpResponse::Ok().body(format!("Welcome: {}", token.token))
+async fn authorized(
+    data: web::Data<crate::WebState>,
+    token: AccessToken,
+) -> Result<HttpResponse, actix_web::Error> {
+    let user = token.get_user(&data.db).await?;
+
+    Ok(HttpResponse::Ok().body(format!("Welcome: {}", &user.username)))
 }
 
 pub fn routes() -> impl HttpServiceFactory {

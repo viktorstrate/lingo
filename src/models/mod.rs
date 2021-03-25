@@ -17,20 +17,26 @@ pub trait Model: Sized + DeserializeOwned + Serialize {
     fn from_doc(document: mongodb::bson::Document) -> Result<Self, ResponseError> {
         match mongodb::bson::from_document::<Self>(document) {
             Ok(model) => Ok(model),
-            Err(_) => Err(ResponseError::error(&format!(
-                "Failed to convert collection to struct: {}",
-                Self::collection_name()
-            ))),
+            Err(err) => Err(ResponseError::error(
+                Some(&err),
+                &format!(
+                    "failed to convert document to struct ({})",
+                    Self::collection_name()
+                ),
+            )),
         }
     }
 
     fn to_doc(&self) -> Result<Document, ResponseError> {
         match mongodb::bson::to_document(&self) {
             Ok(model) => Ok(model),
-            _ => Err(ResponseError::error(&format!(
-                "Failed to convert struct to document: {}",
-                Self::collection_name()
-            ))),
+            Err(err) => Err(ResponseError::error(
+                Some(&err),
+                &format!(
+                    "failed to convert struct to document ({})",
+                    Self::collection_name()
+                ),
+            )),
         }
     }
 }
@@ -42,7 +48,13 @@ pub struct ResponseError {
 }
 
 impl ResponseError {
-    pub fn error(message: &str) -> ResponseError {
+    pub fn error(err: Option<&dyn std::error::Error>, message: &str) -> ResponseError {
+        if let Some(err) = err {
+            println!("ERROR: Response error: {}: {}", message, err.to_string(),);
+        } else {
+            println!("ERROR: Response error: {}", message);
+        }
+
         ResponseError {
             message: message.to_string(),
             status_code: StatusCode::INTERNAL_SERVER_ERROR,
@@ -64,8 +76,8 @@ impl fmt::Display for ResponseError {
 }
 
 impl From<mongodb::error::Error> for ResponseError {
-    fn from(_: mongodb::error::Error) -> Self {
-        ResponseError::error(&format!("database error"))
+    fn from(err: mongodb::error::Error) -> Self {
+        ResponseError::error(Some(&err), &format!("database error"))
     }
 }
 

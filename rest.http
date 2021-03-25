@@ -14,4 +14,4 @@ Content-Type: application/json
 ###
 
 GET http://localhost:8080/api/authorized HTTP/1.1
-Authorization: Bearer a8bef8b2-78f6-4d19-887a-f2fe848c5ebf
+Authorization: Bearer 0c18f48a-c819-4a30-85bb-733ad4d7bff9

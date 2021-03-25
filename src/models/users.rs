@@ -1,5 +1,5 @@
 use std::{
-    future::{ready, Future, Ready},
+    future::{ready, Future},
     pin::Pin,
 };
 
@@ -7,10 +7,8 @@ use super::Model;
 use super::ResponseError;
 use crate::WebState;
 use actix_web::{
-    dev::ResponseBody,
     http::{header::AUTHORIZATION, StatusCode},
     web::Data,
-    FromRequest, HttpMessage,
 };
 use bson::oid::ObjectId;
 use mongodb::bson::{self, doc, DateTime};
@@ -41,7 +39,7 @@ impl User {
 
         let user_exists = match users.find_one(doc! { "username": &username }, None).await {
             Ok(doc) => doc.is_some(),
-            Err(_) => return Err(ResponseError::error("get user from database")),
+            Err(err) => return Err(ResponseError::error(Some(&err), "get user from database")),
         };
 
         if user_exists {
@@ -59,7 +57,7 @@ impl User {
 
         users.insert_one(user.to_doc()?, None).await?;
 
-        println!("New user created: {}", user.username);
+        println!("new user created: {}", user.username);
 
         return Ok(user);
     }
@@ -99,13 +97,17 @@ impl AccessToken {
         return Ok(access_token);
     }
 
-    pub async fn get_user(db: &mongodb::Database, token: &str) -> Result<User, ResponseError> {
-        match AccessToken::collection(&db)
-            .find_one(doc! { token: token }, None)
+    pub async fn get_user(&self, db: &mongodb::Database) -> Result<User, ResponseError> {
+        match User::collection(&db)
+            .find_one(doc! { "_id": &self.user_id }, None)
             .await
         {
             Ok(Some(doc)) => User::from_doc(doc),
-            _ => Err(ResponseError::error("error")),
+            Ok(None) => Err(ResponseError::new(
+                "user not found",
+                StatusCode::UNAUTHORIZED,
+            )),
+            Err(err) => Err(ResponseError::error(Some(&err), "error")),
         }
     }
 }
@@ -121,8 +123,9 @@ impl actix_web::FromRequest for AccessToken {
 
         let db = match req.app_data::<Data<WebState>>() {
             Some(state) => state.db.clone(),
-            _ => {
+            None => {
                 return Box::pin(ready(Err(ResponseError::error(
+                    None,
                     "could not get db from WebState",
                 ))))
             }
@@ -132,7 +135,12 @@ impl actix_web::FromRequest for AccessToken {
             let auth_header = match header_value {
                 Some(header) => match header.to_str() {
                     Ok(str) => str.to_owned(),
-                    _ => return Err(ResponseError::error("invalid AUTHORIZATION header")),
+                    Err(err) => {
+                        return Err(ResponseError::error(
+                            Some(&err),
+                            "invalid AUTHORIZATION header",
+                        ))
+                    }
                 },
                 None => {
                     return Err(ResponseError::new(
@@ -143,16 +151,18 @@ impl actix_web::FromRequest for AccessToken {
             };
 
             if !auth_header.to_lowercase().starts_with("bearer ") {
-                return Err(ResponseError::error(
+                return Err(ResponseError::new(
                     "AUTHORIZATION header is invalid bearer",
+                    StatusCode::BAD_REQUEST,
                 ));
             }
 
             let token_value = match auth_header.split(' ').nth(1) {
                 Some(token) => token,
                 _ => {
-                    return Err(ResponseError::error(
+                    return Err(ResponseError::new(
                         "AUTHORIZATION header is invalid bearer",
+                        StatusCode::BAD_REQUEST,
                     ))
                 }
             };
@@ -166,7 +176,10 @@ impl actix_web::FromRequest for AccessToken {
                     "invalid token",
                     StatusCode::UNAUTHORIZED,
                 )),
-                Err(_) => Err(ResponseError::error("failed to convert access token")),
+                Err(err) => Err(ResponseError::error(
+                    Some(&err),
+                    "failed to convert access token",
+                )),
             };
 
             return token;
