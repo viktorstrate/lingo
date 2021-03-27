@@ -61,7 +61,7 @@ async fn register(
     return Ok(HttpResponse::Ok().json(user));
 }
 
-#[get("/")]
+#[get("")]
 async fn hello() -> impl Responder {
     HttpResponse::Ok().body("Lingo API Auth")
 }

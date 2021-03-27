@@ -3,8 +3,9 @@ use actix_web::{dev::HttpServiceFactory, get, web, HttpResponse, Responder};
 use crate::models::users::AccessToken;
 
 mod authentication;
+mod channels;
 
-#[get("/")]
+#[get("")]
 async fn hello() -> impl Responder {
     HttpResponse::Ok().body("Lingo API")
 }
@@ -24,4 +25,5 @@ pub fn routes() -> impl HttpServiceFactory {
         .service(hello)
         .service(authorized)
         .service(authentication::routes())
+        .service(channels::routes())
 }

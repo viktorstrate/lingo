@@ -1,11 +1,16 @@
 use std::fmt;
 
 use actix_web::{http::StatusCode, HttpResponse};
+use futures::{Stream, StreamExt};
 use mongodb::bson::Document;
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::json;
 
 pub mod users;
+
+pub mod channels;
+pub mod text_messages;
+pub mod text_rooms;
 
 pub trait Model: Sized + DeserializeOwned + Serialize {
     fn collection_name() -> &'static str;
@@ -39,6 +44,18 @@ pub trait Model: Sized + DeserializeOwned + Serialize {
             )),
         }
     }
+}
+
+pub fn model_from_cursor<T: Model>(
+    cursor: mongodb::Cursor,
+) -> impl Stream<Item = Result<T, ResponseError>> {
+    let iter = cursor.map(|doc_res| {
+        doc_res
+            .or_else(|err| Err(ResponseError::from(err)))
+            .and_then(|doc| T::from_doc(doc))
+    });
+
+    return iter;
 }
 
 #[derive(Debug)]

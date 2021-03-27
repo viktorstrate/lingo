@@ -11,6 +11,8 @@ interface Server {
 
 ## Channels
 
+See [channels](./channels.md)
+
 ```ts
 interface Channel {
   id: ID,
