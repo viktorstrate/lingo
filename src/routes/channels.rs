@@ -23,9 +23,12 @@ async fn make_channel(
     req: web::Json<MakeChannelRequest>,
 ) -> Result<HttpResponse, ResponseError> {
     let user = token.get_user(&data.db).await?;
-    let channel =
-        channels::Channel::make_channel(&data.db, &req.name, &user.id.expect("user to have id"))
-            .await?;
+    let channel = channels::Channel::make_channel(
+        &data.db,
+        req.name.to_owned(),
+        user.id.expect("user to have id"),
+    )
+    .await?;
 
     Ok(HttpResponse::Ok().json(json!({ "name": &channel.name })))
 }

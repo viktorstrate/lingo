@@ -2,15 +2,13 @@ use std::fmt;
 
 use actix_web::{http::StatusCode, HttpResponse};
 use futures::{Stream, StreamExt};
-use mongodb::bson::Document;
+use mongodb::bson::{oid::ObjectId, Document};
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::json;
 
-pub mod users;
-
 pub mod channels;
-pub mod text_messages;
 pub mod text_rooms;
+pub mod users;
 
 pub trait Model: Sized + DeserializeOwned + Serialize {
     fn collection_name() -> &'static str;
