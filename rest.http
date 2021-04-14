@@ -27,3 +27,9 @@ Content-Type: application/json
 Authorization: Bearer 0c18f48a-c819-4a30-85bb-733ad4d7bff9
 
 {"name": "Another channel"}
+
+###
+
+GET http://localhost:8080/api/channel/605d02f100e30f86000d80d9
+Content-Type: application/json
+Authorization: Bearer 0c18f48a-c819-4a30-85bb-733ad4d7bff9

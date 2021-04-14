@@ -3,6 +3,7 @@ use actix_web::{dev::HttpServiceFactory, get, web, HttpResponse, Responder};
 use crate::models::users::AccessToken;
 
 mod authentication;
+mod channel;
 mod channels;
 
 #[get("")]
@@ -26,4 +27,5 @@ pub fn routes() -> impl HttpServiceFactory {
         .service(authorized)
         .service(authentication::routes())
         .service(channels::routes())
+        .service(channel::routes())
 }
