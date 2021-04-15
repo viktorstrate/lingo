@@ -1,0 +1,15 @@
+{
+  "name": "lingo-ui",
+  "version": "1.0.0",
+  "main": "index.js",
+  "devDependencies": {
+    "@dillonkearns/elm-graphql": "^4.2.1"
+  },
+  "scripts": {
+    "api": "elm-graphql http://localhost:8080/graphql",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": ""
+}
